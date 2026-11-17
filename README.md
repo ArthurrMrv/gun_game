@@ -5,6 +5,12 @@ Walk a pixel character around campus, find the 8 glowing spots (4K streaming, ph
 email attachments, frugal AI, cloud storage, networks, e-waste, eco-design), answer one question
 at each, and learn the real figures with their sources.
 
+- **Duels:** 3 rivals roam the paths (Byte Hog, Stream Kraken, Gadget Gremlin). Touching one starts a
+  turn-based duel: each right answer hits the rival (critical hit if answered within 8 s), each wrong
+  answer or timeout costs you HP. Fixing all 8 habits wakes the final boss, The Overclock.
+- **48 questions**, 6 per topic, each with a source; a run never repeats a question until the pool runs out.
+- **Story intro:** short dialogue messages advanced one at a time with Space or a tap.
+
 - **Play:** arrows / WASD to move, Space or E to act, 1–4 to answer. On touch screens, use the on-screen pad.
 - **Dashboard:** games played, best score, knowledge by topic, and the 1–10 rating the brief asks for (stored on the device).
 - **Share:** the end screen copies a challenge message for friends.

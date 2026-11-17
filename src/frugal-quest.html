@@ -159,6 +159,34 @@ td { padding: 8px; border-bottom: 1px solid var(--line); font-variant-numeric: t
 footer { font: 400 12px/16px var(--sans); color: var(--ink-muted); display: flex; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 footer a { color: var(--sky); }
 
+/* Dialogue box (RPG style) */
+.dlg { position: absolute; left: 8px; right: 8px; bottom: 8px; background: var(--surface-200); color: var(--ink); border: 2px solid var(--ink);
+  border-radius: 10px; padding: 10px 14px 12px; box-shadow: 0 3px 0 rgba(0,0,0,.25); cursor: pointer; }
+.dlg .who { font: 700 13px/18px var(--sans); color: var(--moss); display: flex; justify-content: space-between; gap: 8px; }
+.dlg .who span:last-child { color: var(--ink-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.dlg p { margin: 2px 0 0; font: 400 15px/21px var(--sans); min-height: 42px; }
+.dlg .more { position: absolute; right: 12px; bottom: 6px; font: 700 12px/1 var(--sans); color: var(--moss); animation: nudge 1s infinite; }
+@keyframes nudge { 50% { transform: translateY(2px); } }
+.sub { font: 400 12px/16px var(--sans); color: var(--ink-muted); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+.sub b { font-weight: 600; color: var(--ink); }
+
+/* Battle */
+.modal.battle-modal { max-width: 560px; gap: 12px; }
+.arena { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.arena canvas { aspect-ratio: 160 / 96; }
+.hpbox { position: absolute; background: var(--surface-200); border: 2px solid var(--ink); border-radius: 8px; padding: 4px 8px; min-width: 44%; font: 600 13px/18px var(--sans); }
+.hpbox.foe { left: 8px; top: 8px; }
+.hpbox.me { right: 8px; bottom: 8px; }
+.hpbox .nm { display: flex; justify-content: space-between; gap: 8px; }
+.hpbox .nm span:last-child { color: var(--ink-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.hp { height: 7px; border-radius: 99px; background: var(--surface-300); overflow: hidden; margin-top: 3px; }
+.hp i { display: block; height: 100%; border-radius: 99px; transition: width .5s ease, background-color .5s; }
+.bmsg { font: 600 16px/22px var(--sans); min-height: 22px; }
+.timer { height: 6px; border-radius: 99px; background: var(--surface-300); overflow: hidden; }
+.timer i { display: block; height: 100%; width: 100%; background: var(--sky); border-radius: 99px; }
+.answers.compact .ans { padding: 9px 12px; font-size: 15px; line-height: 20px; }
+.fact.small { padding: 10px 12px; font-size: 14px; line-height: 20px; }
+
 @media (max-width: 640px) {
   .hud { grid-template-columns: auto 1fr; }
   .meter { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; }
@@ -170,7 +198,7 @@ footer a { color: var(--sky); }
   .modal { padding: 18px; }
   .brand b { font-size: 21px; }
 }
-@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .fill, .hp i { transition: none; } .dlg .more { animation: none; } }
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -221,6 +249,7 @@ footer a { color: var(--sky); }
         <div class="prog">
           <div class="lbl"><span>Habits fixed</span><span id="fixedTxt">0 / 8</span></div>
           <div class="track"><div class="fill" id="fixedBar"></div></div>
+          <div class="sub"><span>Rivals beaten <b id="rivTxt">0 / 3</b></span><span>Final boss <b id="bossTxt">locked</b></span></div>
         </div>
         <div class="meter">
           <div class="lbl" id="impactLbl"><svg style="color:var(--impact-low)"><use href="#i-leaf"/></svg><span>Footprint: Low</span></div>
@@ -229,6 +258,7 @@ footer a { color: var(--sky); }
       </div>
       <div class="stage">
         <canvas id="cv" width="320" height="192" aria-label="Pixel campus. Move the character to the glowing spots and press Space to fix each habit." tabindex="0"></canvas>
+        <div class="dlg" id="dlg" hidden role="status" aria-live="polite"><div class="who"><span id="dlgWho"></span><span id="dlgN"></span></div><p id="dlgTxt"></p><span class="more" aria-hidden="true">▼ Space</span></div>
       </div>
       <div class="hint">
         <span class="kbhint">Move with <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>WASD</kbd> · act with <kbd>Space</kbd> or <kbd>E</kbd></span>
@@ -255,7 +285,7 @@ footer a { color: var(--sky); }
       </div>
       <div class="card">
         <h3 style="font-size:20px;line-height:26px;margin-bottom:8px">Recent games</h3>
-        <div class="tablewrap"><table><thead><tr><th>When</th><th>Score</th><th>Correct</th><th>Rank</th><th>Rating</th></tr></thead><tbody id="hist"></tbody></table></div>
+        <div class="tablewrap"><table><thead><tr><th>When</th><th>Score</th><th>Correct</th><th>Rank</th><th>Rivals</th><th>Rating</th></tr></thead><tbody id="hist"></tbody></table></div>
       </div>
     </div>
   </section>
@@ -340,6 +370,90 @@ const QUESTIONS = {
       f: "On OLED screens each pixel makes its own light, so black pixels are nearly off. On LCD screens the gain is small, but it never costs more.", s: "Purdue University study on dark mode and OLED power (2021)" }
   ]
 };
+
+const MORE = {
+  video: [
+    { q: "Which setting cuts a streaming app's data use the most on a phone?", a: ["Lowering screen brightness", "Choosing a lower video quality, like 480p", "Closing other browser tabs", "Turning on Bluetooth"], c: 1,
+      f: "Data use grows with resolution and bitrate. Most apps let you cap quality on mobile data, and on a phone screen 480p or 720p is usually enough.", s: "YouTube and Netflix help pages on mobile data settings" },
+    { q: "You only want to listen to a song. What is the frugal choice?", a: ["Play the 4K music video in the background", "Use an audio stream or a downloaded playlist", "Loop the video all day", "Stream it on two devices at once"], c: 1,
+      f: "Spotify's highest audio quality is 320 kbit/s, while Netflix recommends about 5 Mbit/s for HD video: around 15 times more data for the same song.", s: "Spotify and Netflix published streaming settings" },
+    { q: "Autoplay starts the next episode on its own. Why turn it off?", a: ["It improves picture quality", "It stops streaming episodes nobody is watching", "It makes videos load faster", "It is required by law"], c: 1,
+      f: "Autoplay keeps streaming after you fall asleep or leave the room. The eco-design framework asks services not to start video automatically.", s: "RGESN, Arcom · Arcep · ADEME · DINUM (2024)" },
+    { q: "You will watch a series on the train. What is lighter?", a: ["Stream it over 4G on the way", "Download it on home Wi-Fi before leaving", "Stream it twice to be safe", "Watch it in 4K over 5G"], c: 1,
+      f: "Fixed lines and Wi-Fi need less energy per gigabyte than mobile networks, and a download avoids re-buffering in tunnels with weak signal.", s: "Arcep, Pour un numérique soutenable" }
+  ],
+  phone: [
+    { q: "How long do people in France typically keep a smartphone before replacing it?", a: ["About 1 year", "About 2 to 3 years", "About 7 years", "About 10 years"], c: 1,
+      f: "Phones are often replaced after 2 to 3 years, usually while they still work. Each extra year of use spreads the manufacturing footprint further.", s: "ADEME advice on extending device lifespan" },
+    { q: "Which phone has the lowest footprint for its new owner?", a: ["A brand-new flagship", "A refurbished phone", "A new phone sent by express air shipping", "A new phone plus a spare one"], c: 1,
+      f: "A refurbished phone reuses a device that already exists. ADEME found refurbishing cuts a smartphone's environmental impact by more than half compared with a new one.", s: "ADEME, study on refurbished digital devices (2022)" },
+    { q: "What does France's repairability index on a phone's price tag show?", a: ["Its CO2 emissions", "A score out of 10 for how easy it is to repair", "Its battery life", "Its resale price"], c: 1,
+      f: "Since 2021, phones and laptops sold in France show a repairability score out of 10. Check it before you buy.", s: "French Ministry of Ecological Transition, indice de réparabilité" },
+    { q: "Which habit helps a phone battery last more years?", a: ["Always drain it to 0% before charging", "Avoid heat and keep it roughly between 20% and 80%", "Charge it in direct sun", "Leave it in a hot car"], c: 1,
+      f: "Lithium-ion batteries age faster with heat and at very high or very low charge. Many phones now offer an optimised or 80% charging option.", s: "Apple and Samsung battery care guidance" }
+  ],
+  mail: [
+    { q: "Before emailing a big presentation, what helps most?", a: ["Add more high-resolution images", "Compress it or export a light PDF, then share a link", "Send it twice to be sure", "Reply-all with it to the whole school"], c: 1,
+      f: "Compressed files and links keep one light copy instead of many heavy ones in every mailbox.", s: "ADEME, La face cachée du numérique (2021)" },
+    { q: "You are copied on a thread with 80 people. Which habit avoids waste?", a: ["Reply-all with 'thanks!'", "Reply only to the sender when others don't need it", "Forward it to everyone again", "Print the whole thread"], c: 1,
+      f: "Each reply-all is stored in every recipient's mailbox. Write only to the people who need the message.", s: "ADEME, La face cachée du numérique (2021)" },
+    { q: "Your inbox holds 10,000 old emails. What is the best long-term habit?", a: ["Delete everything every day", "Regularly clear big attachments and old newsletters, keep what you need", "Never delete anything", "Forward them all to yourself"], c: 1,
+      f: "Large attachments take most of the space. Sorting them now and then frees far more storage than deleting short messages.", s: "ADEME, La face cachée du numérique (2021)" },
+    { q: "Which file is usually lightest for sharing a text with two charts?", a: ["A PDF of the document", "A PNG screenshot of every page", "A screen recording scrolling through it", "4K photos of the printed pages"], c: 0,
+      f: "Text is tiny; pictures and videos of text are huge. A compressed PDF stays readable for a fraction of the size.", s: "RGESN (2024), media optimisation criteria" }
+  ],
+  ai: [
+    { q: "You need a simple spam filter. Which model choice fits frugal AI?", a: ["The largest general chatbot available", "A small model specialised for the task", "Several big models voting", "Retraining a giant model every day"], c: 1,
+      f: "The framework recommends favouring more frugal models and splitting a large model into smaller ones when that does the job.", s: "AFNOR Spec 2314, General framework for frugal AI (2024)" },
+    { q: "Before building an AI feature, what does the frugal-AI framework ask first?", a: ["Which GPU to buy", "Whether the need is real and a non-AI solution could work", "How to make the model bigger", "How to collect as much data as possible"], c: 1,
+      f: "Step one is to question the need and describe its uses and limits. Step two is to list every possible solution, with or without AI.", s: "AFNOR Spec 2314, General framework for frugal AI (2024)" },
+    { q: "Compared with a short text task, generating an image with AI uses…", a: ["Much less energy", "About the same energy", "Much more energy", "No energy at all"], c: 2,
+      f: "A 2023 study measured image generation as by far the most energy-hungry of the common AI tasks it tested, well above text classification or text generation.", s: "Luccioni, Jernite & Strubell, Power Hungry Processing (2023)" },
+    { q: "Which data practice is frugal when training an AI model?", a: ["Collect everything, just in case", "Use a relevant, good-quality dataset and control its volume", "Copy the data onto many servers", "Keep every training version forever"], c: 1,
+      f: "The framework lists controlling data volume, working on data quality and using a relevant dataset among its best practices.", s: "AFNOR Spec 2314, General framework for frugal AI (2024)" }
+  ],
+  cloud: [
+    { q: "Is storing files in the cloud free of environmental impact?", a: ["Yes, it's free", "No, it runs on real servers and hardware", "Yes, data weighs nothing", "Only paid storage has an impact"], c: 1,
+      f: "Data centres used around 1.5% of the world's electricity in 2024, and their hardware has to be made and replaced.", s: "IEA, Energy and AI (2025)" },
+    { q: "Your phone syncs every video to three different cloud apps. What is frugal?", a: ["Keep all three", "Pick one backup service and switch off the others", "Add a fourth to be safe", "Upload in RAW format"], c: 1,
+      f: "Every extra sync multiplies storage and transfers. One backup you trust is enough for most personal files.", s: "ADEME, La face cachée du numérique (2021)" },
+    { q: "Data centres use a lot of water. Mainly for what?", a: ["Washing the servers", "Cooling the equipment", "Staff showers", "Making ice for drinks"], c: 1,
+      f: "Many data centres use water to cool servers. Water consumption is one of the indicators the frugal-AI framework asks teams to measure, with climate change.", s: "AFNOR Spec 2314, environmental indicators" },
+    { q: "What is the cloud, physically?", a: ["Water vapour", "Only satellites", "Buildings full of servers, cables and cooling", "Your phone's memory"], c: 2,
+      f: "The cloud is thousands of data centres worldwide, connected by fibre networks and undersea cables, running day and night.", s: "IEA, Energy and AI (2025)" }
+  ],
+  network: [
+    { q: "Which makes up the smallest share of France's digital carbon footprint?", a: ["Devices (phones, TVs, laptops)", "Data centres", "Networks", "They are all equal"], c: 2,
+      f: "Devices make up about 79% of France's digital carbon footprint, data centres about 16% and networks about 5%.", s: "ADEME & Arcep, environmental footprint of digital in France (2022)" },
+    { q: "Your phone updates apps automatically. Which setting is lighter?", a: ["Update over mobile data, anytime", "Update only on Wi-Fi", "Check for updates every hour", "Reinstall apps every week"], c: 1,
+      f: "Updates are big downloads. Over Wi-Fi on a fixed line they need less energy per gigabyte than over 4G or 5G.", s: "Arcep, Pour un numérique soutenable" },
+    { q: "5G is more efficient per gigabyte. Why can it still raise total energy use?", a: ["It is slower", "It encourages heavier uses and new phones", "It uses no antennas", "It deletes data"], c: 1,
+      f: "More usage and replacing phones to get 5G can outweigh the efficiency gain. That's the rebound effect again.", s: "Haut Conseil pour le Climat, Maîtriser l'impact carbone de la 5G (2020)" },
+    { q: "In a group video call, what cuts your share of the footprint the most?", a: ["Using a virtual background", "Turning your camera off when it isn't needed", "Raising the volume", "Joining from two devices"], c: 1,
+      f: "Researchers estimated that turning the camera off in a video call can cut its footprint by up to 96%, because video is the heavy part.", s: "Obringer et al., Resources, Conservation & Recycling (2021)" }
+  ],
+  waste: [
+    { q: "Where should an old charger or a dead phone battery go?", a: ["The household bin", "An e-waste collection point or a shop that takes it back", "The paper recycling bin", "Down the drain"], c: 1,
+      f: "Batteries in household bins can start fires in waste trucks, and their metals are lost. Many electronics shops must take old devices back.", s: "ADEME, guidance on electrical and electronic waste" },
+    { q: "How fast is e-waste growing compared with documented recycling?", a: ["About the same", "2× faster", "5× faster", "More slowly"], c: 2,
+      f: "E-waste generation is rising about five times faster than documented e-waste recycling.", s: "UN Global E-waste Monitor 2024" },
+    { q: "What does a refurbished device mean?", a: ["A used device checked, repaired if needed and resold with a warranty", "A device made from recycled plastic", "A new device with a discount", "A broken device sold as is"], c: 0,
+      f: "Refurbished devices are tested and fixed before resale, so they keep working instead of becoming waste.", s: "ADEME advice on extending device lifespan" },
+    { q: "Your laptop is slow. Which upgrade often gives it years more?", a: ["Buying a new one", "Adding an SSD or more RAM", "Installing heavier software", "Buying a bigger screen"], c: 1,
+      f: "A cheap SSD or memory upgrade can make an old laptop feel new and delay the footprint of manufacturing another one.", s: "ADEME advice on extending device lifespan" }
+  ],
+  web: [
+    { q: "On a typical web page, what usually weighs the most?", a: ["The text", "Images and video", "The page title", "The colour palette"], c: 1,
+      f: "Media makes up most of a page's bytes. Compression, modern formats and lazy loading cut it sharply.", s: "HTTP Archive, Web Almanac" },
+    { q: "Roughly how much does this game download on first load?", a: ["About 100 KB", "About 5 MB", "About 50 MB", "About 1 GB"], c: 0,
+      f: "The median mobile web page weighs over 2 MB. This game stays around 100 KB by drawing its world in code instead of loading images.", s: "HTTP Archive; this page's own measurement" },
+    { q: "Which design choice reduces a service's footprint the most?", a: ["Removing features nobody uses", "Adding an image carousel", "Adding more tracking scripts", "A bigger hero video"], c: 0,
+      f: "The eco-design framework starts with the service's purpose. The lightest feature is the one you don't build.", s: "RGESN, Arcom · Arcep · ADEME · DINUM (2024)" },
+    { q: "A site loads 15 third-party trackers. Why remove most of them?", a: ["Each adds requests, data and computing on every visit", "Trackers make pages lighter", "Browsers require them", "They improve battery life"], c: 0,
+      f: "Every third-party script costs network requests and processing on each visitor's device. The framework asks services to limit them.", s: "RGESN, Arcom · Arcep · ADEME · DINUM (2024)" }
+  ]
+};
+for (const k in MORE) QUESTIONS[k].push(...MORE[k]);
 
 /* ---------- World ---------- */
 const T = 16, VH = 192;
@@ -450,14 +564,53 @@ const HERO = (() => {
 })();
 const HERO_PAL = { k: "#1d2a21", h: "#6b4a2b", s: "#e9b98f", g: "#2f6b3f", y: "#e8ad2e", p: "#2c4a6a" };
 
+/* rivals: original pixel creatures, 16×16 */
+const pad16 = (rows) => rows.map((r) => r.padEnd(16, "."));
+const CREATURES = {
+  hog: pad16(["................", "....kk....kk....", "...kPPk..kPPk...", "...kPPPkkPPPk...", "..kPPPPPPPPPPk..", ".kPPwkPPPPwkPPk.", ".kPPkkPPPPkkPPk.", ".kPPPPPPPPPPPPk.", ".kPPPPnnnnPPPPk.", ".kPPPnknnknPPPk.", "..kPPPnnnnPPPk..", "..kPPPPPPPPPPk..", "...kPPkkkkPPk...", "...kkk....kkk..."]),
+  kraken: pad16([".....kkkkkk.....", "....kBBBBBBk....", "...kBBBBBBBBk...", "..kBBwwBBwwBBk..", "..kBBwkBBwkBBk..", "..kBBBBBBBBBBk..", "..kBBBBYYBBBBk..", "...kBBBBBBBBk...", "..kBkBkBBkBkBk..", ".kBk.kBkkBk.kBk.", ".kk..kBk.kBk.kk.", ".....kk...kk...."]),
+  gremlin: pad16(["......k.........", "......kY........", ".....kkkkk......", "...kkGGGGGkk....", "..kGGGGGGGGGk...", "..kGwwGGGwwGk...", "..kGwkGGGwkGk...", "..kGGGGGGGGGk...", "..kGGkkkkkGGk...", "..kGGGGGGGGGk...", "...kkGGGGGkk....", "...kGk...kGk....", "...kk.....kk...."]),
+  boss: pad16(["...kkkkkkkkkk...", "..kRRRRRRRRRRk..", "..kRwwRRRRwwRk..", "..kRwkRRRRwkRk..", "..kRRRRRRRRRRk..", "..kRkkkkkkkkRk..", "..kRkYYYYYYkRk..", "..kRkkkkkkkkRk..", "..kRRRRRRRRRRk..", "..kRmLmmmmLmRk..", "..kRRRRRRRRRRk..", "..kRmLmmmmLmRk..", "..kkkkkkkkkkkk..", "...kk......kk..."])
+};
+const CREATURE_PAL = { k: "#1d2a21", w: "#fcfbf6", P: "#d98c9a", n: "#b86a79", B: "#4f8fb0", Y: "#e8ad2e", G: "#8a9a6a", R: "#c0503f", m: "#525c4c", L: "#e8ad2e" };
+const RIVALS = [
+  { id: "hog", name: "Byte Hog", lvl: 7, themes: ["cloud", "mail"], hp: 90, hit: 34,
+    taunt: "Oink! I back up every photo three times. Your storage is MINE!",
+    attacks: ["Infinite Backup", "Duplicate Photos", "Inbox Overflow"],
+    axis: "x", a: 8 * 16, b: 14 * 16, fixed: 17 * 16 - 2 },
+  { id: "kraken", name: "Stream Kraken", lvl: 9, themes: ["video", "network"], hp: 90, hit: 34,
+    taunt: "Blub! Next episode starts in 3… 2… 1… You can't stop the stream!",
+    attacks: ["Autoplay Blast", "4K Tentacle", "Endless Scroll"],
+    axis: "y", a: 11 * 16, b: 16 * 16, fixed: 20 * 16 + 1 },
+  { id: "gremlin", name: "Gadget Gremlin", lvl: 8, themes: ["phone", "waste"], hp: 90, hit: 34,
+    taunt: "Your phone is two years old? Ha! Time to throw it in a drawer!",
+    attacks: ["Upgrade Itch", "Drawer Hoard", "Planned Obsolescence"],
+    axis: "x", a: 21 * 16, b: 26 * 16, fixed: 10 * 16 - 2 }
+];
+const BOSS = { id: "boss", name: "The Overclock", lvl: 30, themes: ["ai", "web"], hp: 150, hit: 25, tx: 15, ty: 12,
+  taunt: "Why use a calculator when you can ask a giant model? I run at 100% forever!",
+  attacks: ["Prompt Storm", "Bloatware Wave", "Rebound Surge", "Tracker Swarm"] };
+
 /* ---------- State ---------- */
 let S;
 function newRun() {
-  const pick = {};
-  for (const k in QUESTIONS) pick[k] = (Math.random() * QUESTIONS[k].length) | 0;
   S = { x: 10 * T + 3, y: 10 * T - 2, dir: "down", flip: false, step: 0, moving: false,
-    score: 0, streak: 0, done: {}, results: {}, pick, finished: false, started: true, rated: null };
+    score: 0, streak: 0, done: {}, results: {}, used: {}, stats: {}, finished: false, started: true, rated: null,
+    rivals: RIVALS.map((r) => ({ id: r.id, pos: (r.a + r.b) / 2, v: 1, beaten: false, cool: 0 })), boss: "locked" };
 }
+/* draw an unused question for a topic (falls back to any unused, then any) */
+function pickQuestion(themes) {
+  const pool = [];
+  for (const k of themes) QUESTIONS[k].forEach((q, i) => { if (!S.used[k + i]) pool.push([k, i]); });
+  if (!pool.length) for (const k in QUESTIONS) QUESTIONS[k].forEach((q, i) => { if (!S.used[k + i]) pool.push([k, i]); });
+  if (!pool.length) { S.used = {}; return pickQuestion(themes); }
+  const [k, i] = pool[(Math.random() * pool.length) | 0];
+  S.used[k + i] = true;
+  return { theme: k, Q: QUESTIONS[k][i] };
+}
+function record(theme, ok) { const st = S.stats[theme] || (S.stats[theme] = { r: 0, n: 0 }); st.n++; if (ok) st.r++; }
+const rivalDef = (id) => RIVALS.find((r) => r.id === id);
+function rivalXY(rs) { const d = rivalDef(rs.id); return d.axis === "x" ? { x: rs.pos, y: d.fixed } : { x: d.fixed, y: rs.pos }; }
 
 /* ---------- Canvas ---------- */
 const cv = $("#cv"), g = cv.getContext("2d");
@@ -499,6 +652,18 @@ function render() {
       g.fillStyle = "#3f9d5e"; g.fillRect(x + 9, y - 3, 3, 3); g.fillRect(x + 8, y - 2, 1, 1);
     }
   } }));
+  S.rivals.forEach((rs) => { if (rs.beaten) return; const p = rivalXY(rs);
+    items.push({ y: p.y + 14, draw: () => {
+      const x = Math.round(p.x - cam.x) - 3, y = Math.round(p.y - cam.y) - 2 + ((tick >> 2) & 1);
+      g.fillStyle = P.shade; g.fillRect(x + 3, y + 13, 10, 2);
+      drawSprite(g, CREATURES[rs.id], CREATURE_PAL, x, y, rs.v < 0 && rivalDef(rs.id).axis === "x");
+    } }); });
+  if (S.boss === "open") items.push({ y: BOSS.ty * T + 14, draw: () => {
+    const x = BOSS.tx * T - cam.x, y = BOSS.ty * T - cam.y - 2 + ((tick >> 3) & 1);
+    g.fillStyle = P.shade; g.fillRect(x + 2, y + 14, 12, 2);
+    if ((tick >> 1) & 1) { g.fillStyle = "rgba(222,84,71,.35)"; g.fillRect(x - 2, y - 2, 20, 20); }
+    drawSprite(g, CREATURES.boss, CREATURE_PAL, x, y);
+  } });
   items.push({ y: S.y + 13, draw: () => {
     const fr = S.moving ? HERO[S.dir === "left" || S.dir === "right" ? "side" : S.dir][(S.step >> 3) & 3] : HERO[S.dir === "left" || S.dir === "right" ? "side" : S.dir][0];
     const hx = Math.round(S.x - cam.x), hy = Math.round(S.y - cam.y);
@@ -542,7 +707,7 @@ function loop(ts) {
   const minDt = lowEnergy ? 1000 / 30 : 0;
   if (ts - last < minDt - 1) { requestAnimationFrame(loop); return; }
   const dt = Math.min(50, ts - last || 16); last = ts;
-  if (!modalOpen && S.started) {
+  if (!modalOpen && !dlgOpen && S.started) {
     let dx = 0, dy = 0;
     if (keys.has("left")) dx -= 1; if (keys.has("right")) dx += 1;
     if (keys.has("up")) dy -= 1; if (keys.has("down")) dy += 1;
@@ -558,6 +723,17 @@ function loop(ts) {
       S.step += dt / 16;
     }
   }
+  if (!modalOpen && !dlgOpen && S.started && !S.finished) {
+    for (const rs of S.rivals) {
+      if (rs.beaten) continue;
+      const d = rivalDef(rs.id);
+      rs.pos += rs.v * 0.022 * dt;
+      if (rs.pos > d.b) { rs.pos = d.b; rs.v = -1; } else if (rs.pos < d.a) { rs.pos = d.a; rs.v = 1; }
+      const p = rivalXY(rs);
+      if (ts > rs.cool && Math.abs(p.x + 5 - (S.x + 5)) < 12 && Math.abs(p.y + 8 - (S.y + 8)) < 12) { encounter(d, rs); break; }
+    }
+    if (S.boss === "open" && Math.abs(BOSS.tx * T + 8 - (S.x + 5)) < 16 && Math.abs(BOSS.ty * T + 8 - (S.y + 9)) < 16 && ts > (S.bossCool || 0)) encounter(BOSS, null);
+  }
   tick = Math.floor(ts / 66);
   render();
   const n = nearestSpot();
@@ -568,6 +744,7 @@ function loop(ts) {
 const KEYMAP = { ArrowLeft: "left", a: "left", q: "left", ArrowRight: "right", d: "right", ArrowUp: "up", w: "up", z: "up", ArrowDown: "down", s: "down" };
 addEventListener("keydown", (e) => {
   if (modalOpen) { handleModalKey(e); return; }
+  if (dlgOpen) { if (e.key === " " || e.key === "Enter" || e.key === "e" || e.key === "E") { e.preventDefault(); advance(); } else if (KEYMAP[e.key]) e.preventDefault(); return; }
   if (!$("#view-play").hidden) {
     const k = KEYMAP[e.key] || KEYMAP[e.key.toLowerCase && e.key.toLowerCase()];
     if (k) { keys.add(k); e.preventDefault(); return; }
@@ -582,8 +759,31 @@ document.querySelectorAll(".dpad button").forEach((b) => {
   const off = (e) => { e.preventDefault(); keys.delete(d); b.classList.remove("on"); };
   b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off); b.addEventListener("pointerleave", off); b.addEventListener("pointercancel", off);
 });
-$("#abtn").addEventListener("click", () => act());
+$("#abtn").addEventListener("click", () => { if (dlgOpen) advance(); else act(); });
 cv.addEventListener("click", () => cv.focus());
+
+/* ---------- Dialogue box: short messages, advanced one by one ---------- */
+let dlgOpen = false, dlgQ = [], dlgI = 0, dlgDone = null;
+function say(lines, done) {
+  dlgQ = lines; dlgI = 0; dlgDone = done || null; dlgOpen = true; keys.clear();
+  $("#dlg").hidden = false; showLine();
+}
+function showLine() {
+  const l = dlgQ[dlgI];
+  $("#dlgWho").textContent = l.who; $("#dlgTxt").textContent = l.text;
+  $("#dlgN").textContent = dlgQ.length > 1 ? `${dlgI + 1}/${dlgQ.length}` : "";
+}
+function advance() {
+  if (!dlgOpen) return;
+  if (++dlgI < dlgQ.length) { showLine(); return; }
+  dlgOpen = false; $("#dlg").hidden = true; const d = dlgDone; dlgDone = null; cv.focus(); if (d) d();
+}
+$("#dlg").addEventListener("click", advance);
+function encounter(def, rs) {
+  if (rs) rs.cool = performance.now() + 1e9; // freeze while the battle runs
+  keys.clear(); S.moving = false;
+  say([{ who: def.name, text: def.taunt }], () => startBattle(def, rs));
+}
 
 function act() {
   if (S.finished) return;
@@ -597,6 +797,8 @@ function updateHud() {
   const n = Object.keys(S.done).length;
   $("#fixedTxt").textContent = `${n} / 8`;
   $("#fixedBar").style.width = (n / 8 * 100) + "%";
+  $("#rivTxt").textContent = `${S.rivals.filter((r) => r.beaten).length} / 3`;
+  $("#bossTxt").textContent = { locked: "locked", open: "awake!", won: "defeated", lost: "escaped" }[S.boss];
   const wrong = Object.values(S.done).filter((v) => v === "wrong").length;
   const segs = document.querySelectorAll("#segs i");
   const level = wrong === 0 ? "low" : wrong <= 2 ? "mid" : "high";
@@ -626,24 +828,156 @@ function handleModalKey(e) {
 }
 
 function intro() {
+  say([
+    { who: "Prof. Fern", text: "Welcome to campus! Our digital habits are quietly wasting energy here, and I need your help." },
+    { who: "Prof. Fern", text: "Walk to the 8 glowing spots with the arrows or WASD, then press Space to fix each habit by answering a question." },
+    { who: "Prof. Fern", text: "Careful: 3 rivals roam the paths and will challenge you to a duel. Fix every habit and the final boss wakes up!" }
+  ]);
+}
+
+function openBoss() {
+  S.boss = "open"; updateHud();
+  say([
+    { who: "Prof. Fern", text: "All 8 habits fixed. Brilliant! But the campus servers are heating up…" },
+    { who: "The Overclock", text: "WHO turned off my autoplay?! Come to the middle of campus and face me!" }
+  ]);
+}
+
+/* ---------- Battle: answer questions to land hits ---------- */
+let B = null;
+function startBattle(def, rs) {
+  B = { def, rs, hp: def.hp, php: 100, turn: 0, anim: null, timer: null, raf: 0 };
   showModal(`
-    <span class="eyebrow">${icon("leaf")}A pixel quest about digital habits</span>
-    <h2 id="mt" style="font-size:34px;line-height:40px">Eight habits are wasting energy on campus.</h2>
-    <p class="lead">Walk to each glowing spot, answer one question and fix the habit. Right answers grow your score. Wrong ones raise your footprint, but you always learn the real numbers.</p>
-    <ul class="list">
-      <li>${icon("video")}Streaming in 4K</li><li>${icon("phone")}Replacing phones too soon</li>
-      <li>${icon("mail")}Heavy attachments</li><li>${icon("ai")}AI for everything</li>
-      <li>${icon("cloud")}Endless cloud backups</li><li>${icon("wifi")}Mobile data vs Wi-Fi</li>
-      <li>${icon("recycle")}E-waste in drawers</li><li>${icon("web")}Heavy websites</li>
-    </ul>
-    <div class="row"><button class="btn btn-primary" data-autofocus id="go">Start the quest</button>
-      <span class="src">Takes about 4 minutes.</span></div>`,
-    (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#go").click(); } });
-  $("#go").addEventListener("click", () => { closeModal(); cv.focus(); });
+    <div class="arena">
+      <canvas id="bc" width="160" height="96" aria-hidden="true"></canvas>
+      <div class="hpbox foe"><div class="nm"><span>${esc(def.name)}</span><span>Lv ${def.lvl}</span></div><div class="hp"><i id="fhp"></i></div></div>
+      <div class="hpbox me"><div class="nm"><span>You</span><span id="phpTxt">100 / 100</span></div><div class="hp"><i id="php"></i></div></div>
+    </div>
+    <h2 class="bmsg" id="mt">${esc(def.name)} wants to duel!</h2>
+    <div id="bq"></div>`, battleKeys);
+  modal.classList.add("battle-modal");
+  setHp(); drawArena(); setTimeout(nextTurn, 900);
+}
+function setHp() {
+  const f = $("#fhp"), p = $("#php"); if (!f) return;
+  const fr = B.hp / B.def.hp, pr = B.php / 100;
+  const c = (r) => `var(--impact-${r > 0.5 ? "low" : r > 0.25 ? "mid" : "high"})`;
+  f.style.width = fr * 100 + "%"; f.style.background = c(fr);
+  p.style.width = pr * 100 + "%"; p.style.background = c(pr);
+  $("#phpTxt").textContent = `${Math.max(0, B.php)} / 100`;
+}
+function drawArena(t) {
+  const c = $("#bc"); if (!c || !B) return;
+  const bg = c.getContext("2d"); bg.imageSmoothingEnabled = false;
+  const P = PAL[theme];
+  bg.fillStyle = theme === "dark" ? "#1f2f22" : "#cfe3b5"; bg.fillRect(0, 0, 160, 96);
+  bg.fillStyle = theme === "dark" ? "#2a3d2c" : "#e6efd7"; bg.fillRect(0, 0, 160, 34);
+  const ell = (cx, cy, rx, ry, col) => { bg.fillStyle = col; bg.beginPath(); bg.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); bg.fill(); };
+  ell(116, 50, 30, 7, P.grass2); ell(42, 88, 34, 8, P.grass2);
+  const a = B.anim, now = performance.now();
+  const hitFoe = a && a.who === "foe" && now - a.t < 500, hitMe = a && a.who === "me" && now - a.t < 500;
+  const sx = (h) => (h ? (((now / 40) | 0) % 2 ? 2 : -2) : 0);
+  const blink = (h) => h && (((now / 80) | 0) % 2 === 0);
+  const sprite = B.def.id === "boss" ? CREATURES.boss : CREATURES[B.def.id];
+  if (!blink(hitFoe) && B.hp > 0) { bg.save(); bg.translate(92 + sx(hitFoe), 2); bg.scale(3, 3); drawSprite(bg, sprite, CREATURE_PAL, 0, 0); bg.restore(); }
+  if (!blink(hitMe)) { bg.save(); bg.translate(28 + sx(hitMe), 42); bg.scale(3, 3); drawSprite(bg, HERO.up[0], HERO_PAL, 0, 0); bg.restore(); }
+  if (theme === "dark") { bg.fillStyle = "rgba(10,20,40,.15)"; bg.fillRect(0, 0, 160, 96); }
+  if (a && now - a.t < 520) B.raf = requestAnimationFrame(drawArena);
+}
+function hit(who) { B.anim = { who, t: performance.now() }; cancelAnimationFrame(B.raf); drawArena(); }
+function nextTurn() {
+  if (!B || !$("#bq")) return;
+  B.turn++;
+  const { theme: tk, Q } = pickQuestion(B.def.themes);
+  B.cur = { tk, Q };
+  const atk = B.def.attacks[(B.turn - 1) % B.def.attacks.length];
+  $("#mt").textContent = `${B.def.name} uses ${atk}! Answer to strike back.`;
+  const order = Q.a.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
+  $("#bq").innerHTML = `
+    <div class="row" style="justify-content:space-between;margin-bottom:6px"><span class="eyebrow">${icon(THEMES[tk].icon)}${esc(THEMES[tk].name)}</span><span class="src">Answer within 8 s for a critical hit</span></div>
+    <div class="timer" style="margin-bottom:10px"><i id="tbar"></i></div>
+    <p class="q" style="margin:0 0 10px;font-size:20px;line-height:26px">${esc(Q.q)}</p>
+    <div class="answers compact">${order.map((oi, k) => `<button class="ans" data-i="${oi}"><span class="k">${k + 1}</span><span>${esc(Q.a[oi])}</span><svg class="ic" aria-hidden="true"></svg></button>`).join("")}</div>
+    <div id="bafter"></div>`;
+  modal.querySelectorAll("#bq .ans").forEach((b) => b.addEventListener("click", () => battleAnswer(+b.dataset.i)));
+  const first = modal.querySelector("#bq .ans"); if (first) first.focus();
+  B.t0 = performance.now();
+  const bar = $("#tbar"); bar.style.transition = "none"; bar.style.width = "100%";
+  requestAnimationFrame(() => { bar.style.transition = "width 20s linear"; bar.style.width = "0%"; });
+  clearTimeout(B.timer); B.timer = setTimeout(() => battleAnswer(-1), 20000);
+}
+function battleAnswer(i) {
+  if (!B || B.answered === B.turn) return;
+  B.answered = B.turn; clearTimeout(B.timer);
+  const bar = $("#tbar"); if (bar) { bar.style.width = getComputedStyle(bar).width; bar.style.transition = "none"; }
+  const { tk, Q } = B.cur, ok = i === Q.c, quick = performance.now() - B.t0 < 8000;
+  modal.querySelectorAll("#bq .ans").forEach((b) => {
+    const bi = +b.dataset.i; b.disabled = true;
+    if (bi === Q.c) { b.classList.add("correct"); b.querySelector(".ic").innerHTML = '<use href="#i-check"/>'; }
+    else if (bi === i) { b.classList.add("wrong"); b.querySelector(".ic").innerHTML = '<use href="#i-cross"/>'; }
+    else b.classList.add("dim");
+  });
+  record(tk, ok);
+  let msg;
+  if (ok) {
+    const dmg = quick ? 45 : 30; B.hp = Math.max(0, B.hp - dmg); S.score += quick ? 75 : 50;
+    msg = quick ? `Critical hit! ${B.def.name} loses ${dmg} HP.` : `Good answer! ${B.def.name} loses ${dmg} HP.`; hit("foe");
+  } else {
+    B.php = Math.max(0, B.php - B.def.hit);
+    msg = i < 0 ? `Too slow! The attack hits you for ${B.def.hit} HP.` : `Ouch! The attack hits you for ${B.def.hit} HP.`; hit("me");
+  }
+  setHp(); updateHud();
+  $("#mt").textContent = msg;
+  const over = B.hp <= 0 || B.php <= 0;
+  $("#bafter").innerHTML = `
+    <div class="fact small" style="margin-top:10px">${icon("info")}<div><p style="margin:0 0 4px">${esc(Q.f)}</p><span class="src">Source: ${esc(Q.s)}</span></div></div>
+    <div class="row" style="margin-top:10px"><button class="btn btn-primary" id="bnext">${over ? "Continue" : "Next turn"}</button></div>`;
+  $("#bnext").focus();
+  $("#bnext").addEventListener("click", () => (over ? battleEnd() : nextTurn()));
+}
+function battleKeys(e) {
+  const k = parseInt(e.key, 10);
+  const b = modal.querySelectorAll("#bq .ans")[k - 1];
+  if (b && !b.disabled) { b.click(); e.preventDefault(); return; }
+  if ((e.key === "Enter" || e.key === " ") && document.activeElement && document.activeElement.tagName !== "BUTTON") {
+    const n = $("#bnext") || $("#bdone"); if (n) { n.click(); e.preventDefault(); }
+  }
+}
+function battleEnd() {
+  const { def, rs } = B, won = B.hp <= 0, isBoss = def.id === "boss";
+  cancelAnimationFrame(B.raf);
+  let title, text, buttons;
+  if (won) {
+    const bonus = isBoss ? 500 : 300; S.score += bonus;
+    if (rs) rs.beaten = true;
+    if (isBoss) S.boss = "won";
+    title = `${def.name} is defeated! +${bonus} pts`;
+    text = isBoss ? "The servers cool down and campus runs on frugal power again." : `${def.name} promises to change its habits and leaves campus.`;
+    buttons = `<button class="btn btn-primary" id="bdone">${isBoss ? "See my results" : "Back to campus"}</button>`;
+  } else {
+    title = "You ran out of energy.";
+    text = isBoss ? "The Overclock is still running hot. Try again with new questions, or end the quest here." : `${def.name} wanders off, still wasting. You can challenge it again later.`;
+    buttons = isBoss ? `<button class="btn btn-primary" id="bdone">Try again</button><button class="btn btn-ghost" id="bend">End the quest</button>`
+      : `<button class="btn btn-primary" id="bdone">Back to campus</button>`;
+  }
+  $("#mt").textContent = title;
+  $("#bq").innerHTML = `<p class="lead" style="margin:0 0 12px">${esc(text)}</p><div class="row">${buttons}</div>`;
+  $("#bdone").focus();
+  updateHud();
+  const back = () => { closeModal(); modal.classList.remove("battle-modal"); B = null; lastNear = undefined; updateHud(); };
+  $("#bdone").addEventListener("click", () => {
+    if (won && isBoss) { back(); setTimeout(finish, 200); return; }
+    if (!won && isBoss) { closeModal(); modal.classList.remove("battle-modal"); startBattle(def, rs); return; }
+    back();
+    if (!won && rs) { rs.cool = performance.now() + 5000; // step back so the duel doesn't restart at once
+      for (const [dx, dy] of [[0, -20], [0, 20], [-20, 0], [20, 0]]) if (!blocked(S.x + dx, S.y + dy)) { S.x += dx; S.y += dy; break; } }
+  });
+  const end = $("#bend"); if (end) end.addEventListener("click", () => { S.boss = "lost"; back(); setTimeout(finish, 200); });
 }
 
 function openQuestion(sp) {
-  const th = THEMES[sp.id], Q = QUESTIONS[sp.id][S.pick[sp.id]];
+  const th = THEMES[sp.id], Q = pickQuestion([sp.id]).Q;
   const order = Q.a.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
   const n = Object.keys(S.done).length + 1;
@@ -669,32 +1003,33 @@ function answer(sp, Q, i) {
   });
   let gained = 0;
   if (ok) { S.streak++; gained = 100 + (S.streak - 1) * 25; S.score += gained; } else S.streak = 0;
-  S.done[sp.id] = ok ? "right" : "wrong"; S.results[sp.id] = ok;
+  S.done[sp.id] = ok ? "right" : "wrong"; S.results[sp.id] = ok; record(sp.id, ok);
   const last = Object.keys(S.done).length === 8;
   $("#after").innerHTML = `
     <div class="verdict" style="color:var(${ok ? "--impact-low" : "--impact-high"})">${icon(ok ? "check" : "cross")}<span style="color:var(--ink)">${ok ? `Habit fixed. +${gained} pts${S.streak > 1 ? ` · streak ×${S.streak}` : ""}` : "Not quite. Here is what the numbers say."}</span></div>
     <div class="fact">${icon("info")}<div><b>Did you know?</b><p>${esc(Q.f)}</p><span class="src">Source: ${esc(Q.s)}</span></div></div>
     <div class="row"><button class="btn btn-primary" id="next">${last ? "See my results" : "Back to campus"}</button></div>`;
   $("#next").focus();
-  $("#next").addEventListener("click", () => { closeModal(); updateHud(); lastNear = undefined; if (last) setTimeout(finish, 250); });
+  $("#next").addEventListener("click", () => { closeModal(); updateHud(); lastNear = undefined; if (last) setTimeout(openBoss, 250); });
   updateHud();
 }
 
-function rankFor(c) { return c >= 8 ? "Frugal Legend" : c >= 6 ? "Eco Coder" : c >= 4 ? "Frugal Ranger" : "Digital Sprout"; }
+function rankFor(p) { return p >= 12 ? "Frugal Legend" : p >= 9 ? "Eco Coder" : p >= 6 ? "Frugal Ranger" : "Digital Sprout"; } // out of 13
 
 function finish() {
   S.finished = true;
   const correct = Object.values(S.results).filter(Boolean).length;
-  const rank = rankFor(correct);
+  const beaten = S.rivals.filter((r) => r.beaten).length, bossWon = S.boss === "won";
+  const rank = rankFor(correct + beaten + (bossWon ? 2 : 0));
   const games = store.get("games", []);
-  const rec = { at: Date.now(), score: S.score, correct, rank, rating: null, themes: { ...S.results } };
+  const rec = { at: Date.now(), score: S.score, correct, rank, rating: null, stats: S.stats, rivals: beaten, boss: bossWon };
   games.push(rec); store.set("games", games.slice(-50));
   const best = Math.max(...games.map((g) => g.score));
-  const shareText = `I scored ${S.score} pts on Frugal Quest and fixed ${correct}/8 digital habits (${rank}). Can you beat me? #SMICDay`;
+  const shareText = `I scored ${S.score} pts on Frugal Quest and fixed ${correct}/8 digital habits${bossWon ? " and beat The Overclock" : ""} (${rank}). Can you beat me? #SMICDay`;
   showModal(`
     <span class="eyebrow">${icon("trophy")}Quest complete</span>
     <div><div class="big">${S.score.toLocaleString("en-US")} pts</div>
-      <div class="row" style="margin-top:6px"><span class="rank">${rank}</span><span class="muted">${correct} of 8 right${S.score >= best && games.length > 1 ? " · new best on this device" : ""}</span></div></div>
+      <div class="row" style="margin-top:6px"><span class="rank">${rank}</span><span class="muted">${correct}/8 habits · ${beaten}/3 rivals${bossWon ? " · boss beaten" : ""}${S.score >= best && games.length > 1 ? " · new best on this device" : ""}</span></div></div>
     <h2 id="mt" style="font-size:20px;line-height:26px">How was the game?</h2>
     <div>
       <div class="rate" role="group" aria-label="Rate the game from 1 to 10">${Array.from({ length: 10 }, (_, i) => `<button aria-pressed="false" data-r="${i + 1}">${i + 1}</button>`).join("")}</div>
@@ -727,7 +1062,9 @@ function renderDash() {
   const games = store.get("games", []);
   const rated = games.filter((g) => g.rating);
   const best = games.length ? Math.max(...games.map((g) => g.score)) : 0;
-  const acc = games.length ? Math.round(games.reduce((a, g) => a + g.correct, 0) / (games.length * 8) * 100) : null;
+  const tally = (g, k) => g.stats ? (g.stats[k] || { r: 0, n: 0 }) : (g.themes && k in g.themes ? { r: g.themes[k] ? 1 : 0, n: 1 } : { r: 0, n: 0 });
+  let totR = 0, totN = 0; games.forEach((g) => Object.keys(THEMES).forEach((k) => { const t = tally(g, k); totR += t.r; totN += t.n; }));
+  const acc = totN ? Math.round(totR / totN * 100) : null;
   const avgR = rated.length ? (rated.reduce((a, g) => a + g.rating, 0) / rated.length).toFixed(1) : null;
   const tile = (ic, t, v, s) => `<div class="tile"><span class="t">${icon(ic)}${t}</span><span class="v">${v}</span><span class="s">${s}</span></div>`;
   $("#tiles").innerHTML =
@@ -736,8 +1073,8 @@ function renderDash() {
     tile("leaf", "Knowledge", acc == null ? "–" : acc + "%", "answers right") +
     tile("star", "Rating", avgR == null ? "–" : avgR + "/10", rated.length ? `${rated.length} rating${rated.length > 1 ? "s" : ""}` : "rate after a game");
   const rows = Object.keys(THEMES).map((k) => {
-    const seen = games.filter((g) => g.themes && k in g.themes);
-    const pct = seen.length ? Math.round(seen.filter((g) => g.themes[k]).length / seen.length * 100) : null;
+    let r = 0, n = 0; games.forEach((g) => { const t = tally(g, k); r += t.r; n += t.n; });
+    const pct = n ? Math.round(r / n * 100) : null;
     const lvl = pct == null ? null : pct >= 75 ? "low" : pct >= 40 ? "mid" : "high";
     const lab = lvl == null ? "" : lvl === "low" ? "Strong" : lvl === "mid" ? "Fair" : "To review";
     const ic = lvl === "low" ? "leaf" : lvl === "mid" ? "dot" : "flame";
@@ -747,8 +1084,8 @@ function renderDash() {
   }).join("");
   $("#themes").innerHTML = rows;
   const hist = games.slice(-8).reverse();
-  $("#hist").innerHTML = hist.length ? hist.map((g) => `<tr><td>${new Date(g.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td><td>${g.score}</td><td>${g.correct}/8</td><td>${esc(g.rank)}</td><td>${g.rating ? g.rating + "/10" : "–"}</td></tr>`).join("")
-    : `<tr><td colspan="5" class="empty">No games yet. Finish a quest and your results appear here.</td></tr>`;
+  $("#hist").innerHTML = hist.length ? hist.map((g) => `<tr><td>${new Date(g.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td><td>${g.score}</td><td>${g.correct}/8</td><td>${esc(g.rank)}</td><td>${g.rivals == null ? "–" : g.rivals + "/3" + (g.boss ? " + boss" : "")}</td><td>${g.rating ? g.rating + "/10" : "–"}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="empty">No games yet. Finish a quest and your results appear here.</td></tr>`;
 }
 function showTab(which) {
   const play = which === "play";
