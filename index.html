@@ -160,14 +160,22 @@ td { padding: 8px; border-bottom: 1px solid var(--line); font-variant-numeric: t
 footer { font: 400 12px/16px var(--sans); color: var(--ink-muted); display: flex; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 footer a { color: var(--sky); }
 
-/* Dialogue box (RPG style) */
-.dlg { position: absolute; left: 8px; right: 8px; bottom: 8px; background: var(--surface-200); color: var(--ink); border: 2px solid var(--ink);
-  border-radius: 10px; padding: 10px 14px 12px; box-shadow: 0 3px 0 rgba(0,0,0,.25); cursor: pointer; }
-.dlg .who { font: 700 13px/18px var(--sans); color: var(--moss); display: flex; justify-content: space-between; gap: 8px; }
-.dlg .who span:last-child { color: var(--ink-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
-.dlg p { margin: 2px 0 0; font: 400 15px/21px var(--sans); min-height: 42px; }
-.dlg .more { position: absolute; right: 12px; bottom: 6px; font: 700 12px/1 var(--sans); color: var(--moss); animation: nudge 1s infinite; }
-@keyframes nudge { 50% { transform: translateY(2px); } }
+/* Dialogue panel: covers most of the game screen, one message at a time */
+.dlg { position: absolute; inset: 7% 6%; display: flex; flex-direction: column; justify-content: center; gap: clamp(8px, 2vw, 16px);
+  background: var(--surface-200); color: var(--ink); border: 3px solid var(--ink); border-radius: 14px;
+  padding: clamp(14px, 3vw, 28px); box-shadow: 0 0 0 100vmax rgba(10, 18, 12, .45), 0 4px 0 rgba(0,0,0,.3); cursor: pointer; }
+.dlg .head { display: flex; align-items: center; gap: clamp(10px, 2vw, 16px); }
+.dlg canvas { width: clamp(44px, 9vw, 72px); height: auto; aspect-ratio: 1; flex: none; background: var(--surface-300); border-radius: 10px; border: 2px solid var(--line); }
+.dlg .who { font: 700 clamp(14px, 2vw, 17px)/1.3 var(--sans); color: var(--moss); }
+.dlg .role { font: 400 clamp(12px, 1.6vw, 13px)/1.3 var(--sans); color: var(--ink-muted); }
+.dlg p { margin: 0; font: 600 clamp(17px, 2.9vw, 26px)/1.35 var(--display); text-wrap: pretty; }
+.dlg .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--surface-300); border: 1px solid var(--line); }
+.dots i.on { background: var(--moss); border-color: var(--moss); }
+.dlg .btn { padding: 8px 18px; }
+.dlg .keyhint { font: 400 12px/16px var(--sans); color: var(--ink-muted); }
+@media (max-width: 480px) { .dlg { inset: 4% 3%; } .dlg .keyhint { display: none; } }
 .sub { font: 400 12px/16px var(--sans); color: var(--ink-muted); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
 .sub b { font-weight: 600; color: var(--ink); }
 
@@ -199,7 +207,7 @@ footer a { color: var(--sky); }
   .modal { padding: 18px; }
   .brand b { font-size: 21px; }
 }
-@media (prefers-reduced-motion: reduce) { .fill, .hp i { transition: none; } .dlg .more { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .fill, .hp i { transition: none; } }
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -259,7 +267,11 @@ footer a { color: var(--sky); }
       </div>
       <div class="stage">
         <canvas id="cv" width="320" height="192" aria-label="Pixel campus. Move the character to the glowing spots and press Space to fix each habit." tabindex="0"></canvas>
-        <div class="dlg" id="dlg" hidden role="status" aria-live="polite"><div class="who"><span id="dlgWho"></span><span id="dlgN"></span></div><p id="dlgTxt"></p><span class="more" aria-hidden="true">▼ Space</span></div>
+        <div class="dlg" id="dlg" hidden role="dialog" aria-live="polite" aria-labelledby="dlgWho">
+          <div class="head"><canvas id="dlgPic" width="16" height="16" aria-hidden="true"></canvas><div><div class="who" id="dlgWho"></div><div class="role" id="dlgRole"></div></div></div>
+          <p id="dlgTxt"></p>
+          <div class="foot"><div class="dots" id="dlgN" aria-hidden="true"></div><span class="keyhint">Space or tap to continue</span><button class="btn btn-primary" id="dlgBtn" type="button">Next</button></div>
+        </div>
       </div>
       <div class="hint">
         <span class="kbhint">Move with <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>WASD</kbd> · act with <kbd>Space</kbd> or <kbd>E</kbd></span>
@@ -769,10 +781,21 @@ function say(lines, done) {
   dlgQ = lines; dlgI = 0; dlgDone = done || null; dlgOpen = true; keys.clear();
   $("#dlg").hidden = false; showLine();
 }
+const PROF_PAL = Object.assign({}, HERO_PAL, { h: "#cfd3c8", g: "#f4f1e8", y: "#3f9d5e", p: "#525c4c" });
+const SPEAKERS = {
+  "Prof. Fern": { role: "Head of the campus green team", draw: (c) => drawSprite(c, HERO.down[0], PROF_PAL, 3, 1) },
+  "Byte Hog": { role: "Rival · hoards data", draw: (c) => drawSprite(c, CREATURES.hog, CREATURE_PAL, 0, 1) },
+  "Stream Kraken": { role: "Rival · never stops streaming", draw: (c) => drawSprite(c, CREATURES.kraken, CREATURE_PAL, 0, 2) },
+  "Gadget Gremlin": { role: "Rival · loves new gadgets", draw: (c) => drawSprite(c, CREATURES.gremlin, CREATURE_PAL, 0, 1) },
+  "The Overclock": { role: "Final boss", draw: (c) => drawSprite(c, CREATURES.boss, CREATURE_PAL, 0, 1) }
+};
 function showLine() {
-  const l = dlgQ[dlgI];
-  $("#dlgWho").textContent = l.who; $("#dlgTxt").textContent = l.text;
-  $("#dlgN").textContent = dlgQ.length > 1 ? `${dlgI + 1}/${dlgQ.length}` : "";
+  const l = dlgQ[dlgI], sp = SPEAKERS[l.who];
+  $("#dlgWho").textContent = l.who; $("#dlgRole").textContent = sp ? sp.role : ""; $("#dlgTxt").textContent = l.text;
+  const pc = $("#dlgPic").getContext("2d"); pc.clearRect(0, 0, 16, 16); if (sp) sp.draw(pc);
+  $("#dlgN").innerHTML = dlgQ.length > 1 ? dlgQ.map((_, i) => `<i class="${i <= dlgI ? "on" : ""}"></i>`).join("") : "";
+  const lastLine = dlgI === dlgQ.length - 1;
+  $("#dlgBtn").textContent = !lastLine ? `Next (${dlgI + 1}/${dlgQ.length})` : dlgDone ? "Duel!" : "Let's go";
 }
 function advance() {
   if (!dlgOpen) return;
@@ -780,6 +803,7 @@ function advance() {
   dlgOpen = false; $("#dlg").hidden = true; const d = dlgDone; dlgDone = null; cv.focus(); if (d) d();
 }
 $("#dlg").addEventListener("click", advance);
+$("#dlgBtn").addEventListener("click", (e) => { e.stopPropagation(); advance(); });
 function encounter(def, rs) {
   if (rs) rs.cool = performance.now() + 1e9; // freeze while the battle runs
   keys.clear(); S.moving = false;
