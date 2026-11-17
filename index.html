@@ -178,6 +178,24 @@ footer a { color: var(--sky); }
 @media (max-width: 480px) { .dlg { inset: 4% 3%; } .dlg .keyhint { display: none; } }
 .sub { font: 400 12px/16px var(--sans); color: var(--ink-muted); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
 .sub b { font-weight: 600; color: var(--ink); }
+.medals { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--line); }
+@media (max-width: 480px) { .medals { gap: 3px; } .medals .lbl2 { width: 100%; } }
+.medals .lbl2 { font: 600 12px/16px var(--sans); color: var(--ink-muted); margin-right: 2px; font-variant-numeric: tabular-nums; }
+.medal { width: 20px; height: 25px; flex: none; display: block; }
+.medal .rib { fill: var(--surface-300); }
+.medal .disc { fill: var(--surface-300); stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 2 1.5; }
+.medal.got .rib { fill: var(--moss); }
+.medal.got .disc { stroke: var(--ink); stroke-dasharray: none; }
+.medal.gold .disc { fill: var(--sun); }
+.medal.silver .disc { fill: #c9cdc2; }
+.medal.rival .disc { fill: var(--sky); }
+.medal.pop { animation: pop .6s ease; }
+@keyframes pop { 40% { transform: scale(1.6) translateY(-3px); } }
+.medals .sep { width: 1px; height: 16px; background: var(--line); margin: 0 2px; }
+.boss-ic { display: inline-flex; align-items: center; gap: 4px; font: 600 12px/16px var(--sans); color: var(--ink-muted); padding: 1px 8px 1px 6px; border-radius: 99px; border: 1px solid var(--line); }
+.boss-ic svg { width: 14px; height: 14px; }
+.boss-ic.open { background: var(--impact-high); border-color: var(--impact-high); color: #fff; }
+.boss-ic.done { background: var(--fern); border-color: var(--fern); color: var(--ink); }
 
 /* Battle */
 .modal.battle-modal { max-width: 560px; gap: 12px; }
@@ -207,7 +225,7 @@ footer a { color: var(--sky); }
   .modal { padding: 18px; }
   .brand b { font-size: 21px; }
 }
-@media (prefers-reduced-motion: reduce) { .fill, .hp i { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .fill, .hp i { transition: none; } .medal.pop { animation: none; } }
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -234,6 +252,8 @@ footer a { color: var(--sky); }
     <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="18" cy="6" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="18" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6" stroke="currentColor" stroke-width="1.5"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
     <symbol id="i-ai" viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 3.5V7M9.5 12v1M14.5 12v1M3 11.5v3M21 11.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
     <symbol id="i-web" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 20h8M12 16.5V20M6.5 8h6M6.5 11h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
   </defs>
 </svg>
@@ -258,12 +278,12 @@ footer a { color: var(--sky); }
         <div class="prog">
           <div class="lbl"><span>Habits fixed</span><span id="fixedTxt">0 / 8</span></div>
           <div class="track"><div class="fill" id="fixedBar"></div></div>
-          <div class="sub"><span>Rivals beaten <b id="rivTxt">0 / 3</b></span><span>Final boss <b id="bossTxt">locked</b></span></div>
         </div>
         <div class="meter">
           <div class="lbl" id="impactLbl"><svg style="color:var(--impact-low)"><use href="#i-leaf"/></svg><span>Footprint: Low</span></div>
           <div class="segs" id="segs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
+        <div class="medals" id="medals" aria-label="Medals"></div>
       </div>
       <div class="stage">
         <canvas id="cv" width="320" height="192" aria-label="Pixel campus. Move the character to the glowing spots and press Space to fix each habit." tabindex="0"></canvas>
@@ -607,6 +627,7 @@ const BOSS = { id: "boss", name: "The Overclock", lvl: 30, themes: ["ai", "web"]
 /* ---------- State ---------- */
 let S;
 function newRun() {
+  shownMedals = {};
   S = { x: 10 * T + 3, y: 10 * T - 2, dir: "down", flip: false, step: 0, moving: false,
     score: 0, streak: 0, done: {}, results: {}, used: {}, stats: {}, finished: false, started: true, rated: null,
     rivals: RIVALS.map((r) => ({ id: r.id, pos: (r.a + r.b) / 2, v: 1, beaten: false, cool: 0 })), boss: "locked" };
@@ -816,14 +837,39 @@ function act() {
   if (sp && !S.done[sp.id]) openQuestion(sp);
 }
 
+/* ---------- Medals: 8 habits + 3 rivals unlock the final boss ---------- */
+const MEDAL_TOTAL = 11;
+const medalCount = () => Object.keys(S.done).length + S.rivals.filter((r) => r.beaten).length;
+const allMedals = () => medalCount() >= MEDAL_TOTAL;
+let shownMedals = {};
+function medalSvg(cls, title, key) {
+  const fresh = cls.includes("got") && !shownMedals[key] && !modalOpen; // animate once, when visible
+  if (fresh) shownMedals[key] = true;
+  const pop = fresh ? " pop" : "";
+  return `<svg class="medal ${cls}${pop}" viewBox="0 0 16 20" role="img" aria-label="${esc(title)}"><title>${esc(title)}</title><path class="rib" d="M3 0h4l2 6H5zM9 0h4l-2 6H7z"/><circle class="disc" cx="8" cy="13" r="5.5"/></svg>`;
+}
+function renderMedals() {
+  const n = medalCount();
+  let h = `<span class="lbl2">Medals ${n}/${MEDAL_TOTAL}</span>`;
+  h += SPOTS.map((sp) => { const d = S.done[sp.id];
+    return medalSvg(d ? `got ${d === "right" ? "gold" : "silver"}` : "", `${THEMES[sp.id].name}: ${d ? (d === "right" ? "fixed, gold" : "fixed, silver") : "not yet"}`, sp.id); }).join("");
+  h += '<span class="sep" aria-hidden="true"></span>';
+  h += S.rivals.map((rs) => medalSvg(rs.beaten ? "got rival" : "", `${rivalDef(rs.id).name}: ${rs.beaten ? "beaten" : "not yet"}`, rs.id)).join("");
+  const st = S.boss === "won" ? ["done", "check", "Boss beaten"] : S.boss === "open" ? ["open", "unlock", "Boss awake!"] : S.boss === "lost" ? ["", "cross", "Boss escaped"] : ["", "lock", `Boss: ${MEDAL_TOTAL - n} to go`];
+  h += `<span class="boss-ic ${st[0]}">${icon(st[1])}${st[2]}</span>`;
+  $("#medals").innerHTML = h;
+}
+function afterMedal() { // called after a medal is earned
+  if (allMedals() && S.boss === "locked") { setTimeout(openBoss, 250); return; }
+}
+
 /* ---------- HUD ---------- */
 function updateHud() {
   $("#score").textContent = S.score.toLocaleString("en-US");
   const n = Object.keys(S.done).length;
   $("#fixedTxt").textContent = `${n} / 8`;
   $("#fixedBar").style.width = (n / 8 * 100) + "%";
-  $("#rivTxt").textContent = `${S.rivals.filter((r) => r.beaten).length} / 3`;
-  $("#bossTxt").textContent = { locked: "locked", open: "awake!", won: "defeated", lost: "escaped" }[S.boss];
+  renderMedals();
   const wrong = Object.values(S.done).filter((v) => v === "wrong").length;
   const segs = document.querySelectorAll("#segs i");
   const level = wrong === 0 ? "low" : wrong <= 2 ? "mid" : "high";
@@ -856,14 +902,14 @@ function intro() {
   say([
     { who: "Prof. Fern", text: "Welcome to campus! Our digital habits are quietly wasting energy here, and I need your help." },
     { who: "Prof. Fern", text: "Walk to the 8 glowing spots with the arrows or WASD, then press Space to fix each habit by answering a question." },
-    { who: "Prof. Fern", text: "Careful: 3 rivals roam the paths and will challenge you to a duel. Fix every habit and the final boss wakes up!" }
+    { who: "Prof. Fern", text: "3 rivals also roam the paths. Fix the 8 habits and win the 3 duels to earn 11 medals (look at the top). Collect them all and the final boss wakes up!" }
   ]);
 }
 
 function openBoss() {
   S.boss = "open"; updateHud();
   say([
-    { who: "Prof. Fern", text: "All 8 habits fixed. Brilliant! But the campus servers are heating up…" },
+    { who: "Prof. Fern", text: "That's all 11 medals. Brilliant! But the campus servers are heating up…" },
     { who: "The Overclock", text: "WHO turned off my autoplay?! Come to the middle of campus and face me!" }
   ]);
 }
@@ -995,6 +1041,11 @@ function battleEnd() {
     if (won && isBoss) { back(); setTimeout(finish, 200); return; }
     if (!won && isBoss) { closeModal(); modal.classList.remove("battle-modal"); startBattle(def, rs); return; }
     back();
+    if (won && rs) {
+      if (allMedals()) afterMedal();
+      else if (!S.toldProgress) { S.toldProgress = true; const left = MEDAL_TOTAL - medalCount();
+        setTimeout(() => say([{ who: "Prof. Fern", text: `Let's go, first duel won! Still ${left} medal${left > 1 ? "s" : ""} to go before the final boss. Keep an eye on the medals at the top.` }]), 250); }
+    }
     if (!won && rs) { rs.cool = performance.now() + 5000; // step back so the duel doesn't restart at once
       for (const [dx, dy] of [[0, -20], [0, 20], [-20, 0], [20, 0]]) if (!blocked(S.x + dx, S.y + dy)) { S.x += dx; S.y += dy; break; } }
   });
@@ -1029,13 +1080,13 @@ function answer(sp, Q, i) {
   let gained = 0;
   if (ok) { S.streak++; gained = 100 + (S.streak - 1) * 25; S.score += gained; } else S.streak = 0;
   S.done[sp.id] = ok ? "right" : "wrong"; S.results[sp.id] = ok; record(sp.id, ok);
-  const last = Object.keys(S.done).length === 8;
+  const last = allMedals();
   $("#after").innerHTML = `
     <div class="verdict" style="color:var(${ok ? "--impact-low" : "--impact-high"})">${icon(ok ? "check" : "cross")}<span style="color:var(--ink)">${ok ? `Habit fixed. +${gained} pts${S.streak > 1 ? ` · streak ×${S.streak}` : ""}` : "Not quite. Here is what the numbers say."}</span></div>
     <div class="fact">${icon("info")}<div><b>Did you know?</b><p>${esc(Q.f)}</p><span class="src">Source: ${esc(Q.s)}</span></div></div>
-    <div class="row"><button class="btn btn-primary" id="next">${last ? "See my results" : "Back to campus"}</button></div>`;
+    <div class="row"><button class="btn btn-primary" id="next">${last ? "Continue" : "Back to campus"}</button></div>`;
   $("#next").focus();
-  $("#next").addEventListener("click", () => { closeModal(); updateHud(); lastNear = undefined; if (last) setTimeout(openBoss, 250); });
+  $("#next").addEventListener("click", () => { closeModal(); updateHud(); lastNear = undefined; afterMedal(); });
   updateHud();
 }
 

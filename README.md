@@ -7,7 +7,9 @@ at each, and learn the real figures with their sources.
 
 - **Duels:** 3 rivals roam the paths (Byte Hog, Stream Kraken, Gadget Gremlin). Touching one starts a
   turn-based duel: each right answer hits the rival (critical hit if answered within 8 s), each wrong
-  answer or timeout costs you HP. Fixing all 8 habits wakes the final boss, The Overclock.
+  answer or timeout costs you HP.
+- **Medals:** each fixed habit (8) and each won duel (3) earns a medal shown in the header. All 11 medals
+  wake the final boss, The Overclock.
 - **48 questions**, 6 per topic, each with a source; a run never repeats a question until the pool runs out.
 - **Story intro:** short dialogue messages advanced one at a time with Space or a tap.
 
